@@ -25,6 +25,7 @@ var (
 	cpuLimit      string
 	memoryRequest string
 	cpuRequest    string
+	allMode       bool
 )
 
 func init() {
@@ -42,6 +43,8 @@ func init() {
 	newFunctionCmd.Flags().BoolVar(&list, "list", false, "List available languages")
 	newFunctionCmd.Flags().StringVarP(&appendFile, "append", "a", "", "Append to existing YAML file")
 	newFunctionCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Skip template notes")
+
+	newFunctionCmd.Flags().BoolVar(&allMode, "all", false, "copy complete project")
 
 	faasCmd.AddCommand(newFunctionCmd)
 }
@@ -191,16 +194,22 @@ Download templates:
 	if err != nil {
 		return fmt.Errorf("error reading language template: %s", err.Error())
 	}
+	if allMode {
+		fromTemplateHandler := filepath.Join("template", language)
 
-	templateHandlerFolder := "function"
-	if len(langTemplate.HandlerFolder) > 0 {
-		templateHandlerFolder = langTemplate.HandlerFolder
+		// Create function directory from template.
+		builder.CopyFiles(fromTemplateHandler, handlerDir)
+	} else {
+		templateHandlerFolder := "function"
+		if len(langTemplate.HandlerFolder) > 0 {
+			templateHandlerFolder = langTemplate.HandlerFolder
+		}
+
+		fromTemplateHandler := filepath.Join("template", language, templateHandlerFolder)
+		// Create function directory from template.
+		builder.CopyFiles(fromTemplateHandler, handlerDir)
 	}
 
-	fromTemplateHandler := filepath.Join("template", language, templateHandlerFolder)
-
-	// Create function directory from template.
-	builder.CopyFiles(fromTemplateHandler, handlerDir)
 	printLogo()
 	fmt.Printf("\nFunction created in folder: %s\n", handlerDir)
 
@@ -217,6 +226,10 @@ Download templates:
 		Handler:  "./" + handlerDir,
 		Language: language,
 		Image:    imageName,
+	}
+
+	if allMode {
+		function.Handler += "/function"
 	}
 
 	if len(memoryLimit) > 0 || len(cpuLimit) > 0 {
